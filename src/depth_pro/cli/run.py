@@ -27,6 +27,8 @@ def get_torch_device() -> torch.device:
         device = torch.device("cuda:0")
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
+
+    print(f"Using device: {device}")
     return device
 
 

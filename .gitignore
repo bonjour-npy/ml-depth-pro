@@ -1,2 +1,5 @@
 checkpoints
 output
+data/img1
+.idea
+.mypy_cache
