@@ -7,7 +7,7 @@ import PIL.Image
 import torch
 from matplotlib import pyplot as plt
 
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 
 from depth_pro import create_model_and_transforms, load_rgb
 
@@ -62,7 +62,7 @@ def run(args):
                     continue
                 # Run prediction. If `f_px` is provided, it is used to estimate the final metric depth,
                 # otherwise the model estimates `f_px` to compute the depth metricness.
-                prediction = model.infer(transform(image), f_px=f_px)
+                prediction = model.infer(torch.tensor(transform(image)), f_px=f_px)
 
         # 正式计算 inference time，执行 args.all_epochs - args.warm_up_epochs 个 epoch
         if epoch >= args.warm_up_epochs:
@@ -87,9 +87,9 @@ def run(args):
                 # Run prediction. If `f_px` is provided, it is used to estimate the final metric depth,
                 # otherwise the model estimates `f_px` to compute the depth metricness.
                 # 开始计时
-                starter.record()
-                prediction = model.infer(transform(image), f_px=f_px)
-                ender.record()
+                starter.record(torch.cuda.current_stream())
+                prediction = model.infer(torch.tensor(transform(image)), f_px=f_px)
+                ender.record(torch.cuda.current_stream())
                 torch.cuda.synchronize()
                 # 每个图片的 inference time
                 time = starter.elapsed_time(ender)
