@@ -1,3 +1,5 @@
+# type: ignore
+
 """Copyright (C) 2024 Apple Inc. All Rights Reserved.
 
 Dense Prediction Transformer Decoder architecture.

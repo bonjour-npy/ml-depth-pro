@@ -1,6 +1,6 @@
 # Copyright (C) 2024 Apple Inc. All Rights Reserved.
 # Depth Pro: Sharp Monocular Metric Depth in Less Than a Second
-
+# type: ignore
 
 from __future__ import annotations
 
@@ -46,9 +46,7 @@ DEFAULT_MONODEPTH_CONFIG_DICT = DepthProConfig(
 )
 
 
-def create_backbone_model(
-    preset: ViTPreset
-) -> Tuple[nn.Module, ViTPreset]:
+def create_backbone_model(preset: ViTPreset) -> Tuple[nn.Module, ViTPreset]:
     """Create and load a backbone model given a config.
 
     Args:
@@ -90,9 +88,7 @@ def create_model_and_transforms(
     patch_encoder, patch_encoder_config = create_backbone_model(
         preset=config.patch_encoder_preset
     )
-    image_encoder, _ = create_backbone_model(
-        preset=config.image_encoder_preset
-    )
+    image_encoder, _ = create_backbone_model(preset=config.image_encoder_preset)
 
     fov_encoder = None
     if config.use_fov_head and config.fov_encoder_preset is not None:
@@ -132,7 +128,7 @@ def create_model_and_transforms(
     )
 
     if config.checkpoint_uri is not None:
-        state_dict = torch.load(config.checkpoint_uri, map_location="cpu")
+        state_dict = torch.load(config.checkpoint_uri, map_location=device)
         missing_keys, unexpected_keys = model.load_state_dict(
             state_dict=state_dict, strict=True
         )
@@ -177,7 +173,7 @@ class DepthPro(nn.Module):
 
         self.encoder = encoder
         self.decoder = decoder
-    
+
         dim_decoder = decoder.dim_decoder
         self.head = nn.Sequential(
             nn.Conv2d(
@@ -258,7 +254,7 @@ class DepthPro(nn.Module):
         ----
             x (torch.Tensor): Input image
             f_px (torch.Tensor): Optional focal length in pixels corresponding to `x`.
-            interpolation_mode (str): Interpolation function for downsampling/upsampling. 
+            interpolation_mode (str): Interpolation function for downsampling/upsampling.
 
         Returns:
         -------
@@ -281,7 +277,7 @@ class DepthPro(nn.Module):
         canonical_inverse_depth, fov_deg = self.forward(x)
         if f_px is None:
             f_px = 0.5 * W / torch.tan(0.5 * torch.deg2rad(fov_deg.to(torch.float)))
-        
+
         inverse_depth = canonical_inverse_depth * (W / f_px)
         f_px = f_px.squeeze()
 

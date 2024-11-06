@@ -1,7 +1,9 @@
+# type: ignore
 from PIL import Image
 import depth_pro
 from matplotlib import pyplot as plt
 import os
+
 
 image_path = "./data/example.jpg"
 # Load model and preprocessing transform

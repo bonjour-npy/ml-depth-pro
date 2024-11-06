@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# type: ignore
+
 """Sample script to run DepthPro.
 
 Copyright (C) 2024 Apple Inc. All Rights Reserved.
@@ -125,9 +127,9 @@ def main():
         description="Inference scripts of DepthPro with PyTorch models."
     )
     parser.add_argument(
-        "-i", 
-        "--image-path", 
-        type=Path, 
+        "-i",
+        "--image-path",
+        type=Path,
         default="./data/example.jpg",
         help="Path to input image.",
     )
@@ -143,12 +145,9 @@ def main():
         help="Skip matplotlib display.",
     )
     parser.add_argument(
-        "-v", 
-        "--verbose", 
-        action="store_true", 
-        help="Show verbose output."
+        "-v", "--verbose", action="store_true", help="Show verbose output."
     )
-    
+
     run(parser.parse_args())
 
 

@@ -1,5 +1,5 @@
 # Copyright (C) 2024 Apple Inc. All Rights Reserved.
-
+# type: ignore
 
 try:
     from timm.layers import resample_abs_pos_embed

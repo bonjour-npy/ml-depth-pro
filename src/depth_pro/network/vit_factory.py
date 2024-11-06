@@ -1,3 +1,4 @@
+# type: ignore
 # Copyright (C) 2024 Apple Inc. All Rights Reserved.
 # Factory functions to build and load ViT models.
 
@@ -23,9 +24,7 @@ from .vit import (
 LOGGER = logging.getLogger(__name__)
 
 
-ViTPreset = Literal[
-    "dinov2l16_384",
-]
+ViTPreset = Literal["dinov2l16_384",]
 
 
 @dataclass

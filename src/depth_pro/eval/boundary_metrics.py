@@ -1,3 +1,5 @@
+# type: ignore
+
 from typing import List, Tuple
 
 import numpy as np

@@ -1,4 +1,5 @@
 # Copyright (C) 2024 Apple Inc. All Rights Reserved.
+# type: ignore
 
 import logging
 from pathlib import Path

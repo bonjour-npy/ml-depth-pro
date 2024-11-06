@@ -1,3 +1,5 @@
+# type: ignore
+
 import argparse
 import logging
 from pathlib import Path
@@ -34,9 +36,29 @@ def run(args):
     # Load model.
     model, transform = create_model_and_transforms(
         device=get_torch_device(),
-        precision=torch.half,
+        precision=(
+            torch.half if args.float16 else torch.float
+        ),  # 如果参数设置了半精度则使用 torch.half
     )
     model.eval()
+
+    # Export the model to ONNX format with dynamic input size support.
+    dummy_input = torch.randn(1, 3, 224, 224, device=get_torch_device()).type(
+        torch.half if args.float16 else torch.float
+    )
+    onnx_output_path = args.output_path / "model.onnx"
+    torch.onnx.export(
+        model,
+        dummy_input,
+        onnx_output_path,
+        export_params=True,
+        opset_version=11,
+        do_constant_folding=True,
+        input_names=["input"],
+        output_names=["output"],
+        dynamic_axes={"input": {0: "batch_size", 2: "height", 3: "width"}, "output": {0: "batch_size", 2: "height", 3: "width"}},
+    )
+    print(f"Model has been converted to ONNX and saved at {onnx_output_path}")
 
     global total_epoch_time
     total_epoch_time = 0.0
