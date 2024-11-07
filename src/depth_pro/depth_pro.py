@@ -224,7 +224,7 @@ class DepthPro(nn.Module):
 
         """
         _, _, H, W = x.shape
-        assert H == self.img_size and W == self.img_size
+        # assert H == self.img_size and W == self.img_size
 
         encodings = self.encoder(x)
         features, features_0 = self.decoder(encodings)

@@ -1,5 +1,6 @@
 # Copyright (C) 2024 Apple Inc. All Rights Reserved.
 # DepthProEncoder combining patch and image encoders.
+# type: ignore
 
 from __future__ import annotations
 
@@ -54,7 +55,8 @@ class DepthProEncoder(nn.Module):
         image_encoder_embed_dim = image_encoder.embed_dim
 
         self.out_size = int(
-            patch_encoder.patch_embed.img_size[0] // patch_encoder.patch_embed.patch_size[0]
+            patch_encoder.patch_embed.img_size[0]
+            // patch_encoder.patch_embed.patch_size[0]
         )
 
         def _create_project_upsample_block(
@@ -99,17 +101,25 @@ class DepthProEncoder(nn.Module):
             upsample_layers=3,
         )
         self.upsample_latent1 = _create_project_upsample_block(
-            dim_in=patch_encoder_embed_dim, dim_out=self.dims_encoder[0], upsample_layers=2
+            dim_in=patch_encoder_embed_dim,
+            dim_out=self.dims_encoder[0],
+            upsample_layers=2,
         )
 
         self.upsample0 = _create_project_upsample_block(
-            dim_in=patch_encoder_embed_dim, dim_out=self.dims_encoder[1], upsample_layers=1
+            dim_in=patch_encoder_embed_dim,
+            dim_out=self.dims_encoder[1],
+            upsample_layers=1,
         )
         self.upsample1 = _create_project_upsample_block(
-            dim_in=patch_encoder_embed_dim, dim_out=self.dims_encoder[2], upsample_layers=1
+            dim_in=patch_encoder_embed_dim,
+            dim_out=self.dims_encoder[2],
+            upsample_layers=1,
         )
         self.upsample2 = _create_project_upsample_block(
-            dim_in=patch_encoder_embed_dim, dim_out=self.dims_encoder[3], upsample_layers=1
+            dim_in=patch_encoder_embed_dim,
+            dim_out=self.dims_encoder[3],
+            upsample_layers=1,
         )
 
         self.upsample_lowres = nn.ConvTranspose2d(
@@ -173,6 +183,8 @@ class DepthProEncoder(nn.Module):
         patch_stride = int(patch_size * (1 - overlap_ratio))
 
         image_size = x.shape[-1]
+        # Onnx 无法追踪非 tensor 以及非 torch 函数
+        # steps = torch.ceil((image_size - patch_size) / patch_stride).int() + 1
         steps = int(math.ceil((image_size - patch_size) / patch_stride)) + 1
 
         x_patch_list = []
@@ -186,6 +198,35 @@ class DepthProEncoder(nn.Module):
                 x_patch_list.append(x[..., j0:j1, i0:i1])
 
         return torch.cat(x_patch_list, dim=0)
+
+    # 导出 onnx 模型时导致的 patch 问题，重写 split 函数
+
+    # def split(self, x: torch.Tensor, overlap_ratio: float = 0.25) -> torch.Tensor:
+    #     """Split the input into small patches with sliding window."""
+    #     patch_size = 384
+    #     patch_stride = int(patch_size * (1 - overlap_ratio))
+
+    #     _, _, h, w = x.shape
+    #     pad_h = (patch_size - h % patch_stride) % patch_stride
+    #     pad_w = (patch_size - w % patch_stride) % patch_stride
+    #     x = torch.nn.functional.pad(x, (0, pad_w, 0, pad_h), mode="constant", value=0)
+
+    #     _, _, h, w = x.shape
+    #     steps_h = (h - patch_size) // patch_stride + 1
+    #     steps_w = (w - patch_size) // patch_stride + 1
+
+    #     x_patch_list = []
+    #     for j in range(steps_h):
+    #         j0 = j * patch_stride
+    #         j1 = j0 + patch_size
+
+    #         for i in range(steps_w):
+    #             i0 = i * patch_stride
+    #             i1 = i0 + patch_size
+    #             patch = x[:, :, j0:j1, i0:i1]
+    #             x_patch_list.append(patch)
+
+    #     return torch.cat(x_patch_list, dim=0)
 
     def merge(self, x: torch.Tensor, batch_size: int, padding: int = 3) -> torch.Tensor:
         """Merge the patched input into a image with sliding window."""

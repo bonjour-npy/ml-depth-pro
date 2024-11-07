@@ -1,6 +1,8 @@
 checkpoints
-output
-data/img1
+outputs
+onnx_weights
 .idea
 .mypy_cache
 .vscode
+data
+data/*
