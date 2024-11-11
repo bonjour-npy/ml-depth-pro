@@ -30,7 +30,7 @@ def get_torch_device() -> torch.device:
     """Get the Torch device."""
     device = torch.device("cpu")
     if torch.cuda.is_available():
-        device = torch.device("cuda:0")
+        device = torch.device("cuda")
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
 
@@ -73,6 +73,7 @@ def run(args):
         # 每个 epoch 重新定义图片迭代器（迭代器会损耗）
         image_paths = [args.image_path]
         if args.image_path.is_dir():
+            # 只对测试文件中文件名中包含 '09_28' 的 20 张图片进行测试
             image_paths = [p for p in args.image_path.glob("**/*") if "09_28" in p.name]
             image_counter = len(image_paths)
             # 将 image_paths 转为迭代器
@@ -165,13 +166,15 @@ def run(args):
                         )
                         LOGGER.info(f"Estimated focal length: {focallength_px}")
 
-                    inverse_depth = 1 / depth
-                    # Visualize inverse depth instead of depth, clipped to [0.1m;250m] range for better visualization.
-                    max_invdepth_vizu = min(inverse_depth.max(), 1 / 0.1)
-                    min_invdepth_vizu = max(1 / 250, inverse_depth.min())
-                    inverse_depth_normalized = (inverse_depth - min_invdepth_vizu) / (
-                        max_invdepth_vizu - min_invdepth_vizu
-                    )
+                    # 取消深度倒数的操作，直接保存深度图
+
+                    # inverse_depth = 1 / depth
+                    # # Visualize inverse depth instead of depth, clipped to [0.1m;250m] range for better visualization.
+                    # max_invdepth_vizu = min(inverse_depth.max(), 1 / 0.1)
+                    # min_invdepth_vizu = max(1 / 250, inverse_depth.min())
+                    # inverse_depth_normalized = (inverse_depth - min_invdepth_vizu) / (
+                    #     max_invdepth_vizu - min_invdepth_vizu
+                    # )
 
                     # Save Depth as npz file.
                     if args.output_path is not None:
@@ -189,23 +192,33 @@ def run(args):
                                 / image_path.relative_to(relative_path).parent
                                 / image_path.stem
                             )
-
                         LOGGER.info(f"Saving depth map to: {str(output_file)}")
                         output_file.parent.mkdir(parents=True, exist_ok=True)
                         np.savez_compressed(output_file, depth=depth)
 
-                        # Save as color-mapped "turbo" jpg image.
-                        cmap = plt.get_cmap("turbo")
-                        color_depth = (
-                            cmap(inverse_depth_normalized)[..., :3] * 255
-                        ).astype(np.uint8)
-                        color_map_output_file = str(output_file) + ".png"
-                        LOGGER.info(
-                            f"Saving color-mapped depth to: : {color_map_output_file}"
+                        # 取消深度倒数的操作，直接保存深度图
+
+                        # # Save as color-mapped "turbo" jpg image.
+                        # cmap = plt.get_cmap("turbo")
+                        # color_depth = (
+                        #     cmap(inverse_depth_normalized)[..., :3] * 255
+                        # ).astype(np.uint8)
+                        # color_map_output_file = str(output_file) + ".png"
+                        # LOGGER.info(
+                        #     f"Saving color-mapped depth to: : {color_map_output_file}"
+                        # )
+                        # PIL.Image.fromarray(color_depth).save(
+                        #     color_map_output_file, format="PNG"
+                        # )
+
+                        # 保存深度的灰度图
+                        depth_output_file = str(output_file) + ".png"  # 保存深度图
+                        LOGGER.info(f"Saving depth map to: {depth_output_file}")
+                        PIL.Image.fromarray((depth * 256).astype(np.uint16)).save(
+                            depth_output_file, format="PNG"
                         )
-                        PIL.Image.fromarray(color_depth).save(
-                            color_map_output_file, format="PNG"
-                        )
+
+                    print(f"Depth map and npz file saved.")
 
             # 每个 epoch 的 inference time
             print(f"Epoch {epoch} inference time: {per_epoch_time} ms.")

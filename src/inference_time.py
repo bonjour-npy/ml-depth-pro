@@ -108,6 +108,8 @@ def run(args):
                         )
                         LOGGER.info(f"Estimated focal length: {focallength_px}")
 
+                    # 取消深度倒数的操作，直接保存深度图
+
                     inverse_depth = 1 / depth
                     # Visualize inverse depth instead of depth, clipped to [0.1m;250m] range for better visualization.
                     max_invdepth_vizu = min(inverse_depth.max(), 1 / 0.1)
@@ -127,6 +129,8 @@ def run(args):
                         output_file.parent.mkdir(parents=True, exist_ok=True)
                         np.savez_compressed(output_file, depth=depth)
 
+                        # 取消深度倒数的操作，直接保存深度图
+
                         # Save as color-mapped "turbo" jpg image.
                         cmap = plt.get_cmap("turbo")
                         color_depth = (
@@ -139,7 +143,7 @@ def run(args):
                         PIL.Image.fromarray(color_depth).save(
                             color_map_output_file, format="JPEG", quality=90
                         )
-
+                        
             # 每个 epoch 的 inference time
             print(f"Epoch {epoch} inference time: {per_epoch_time} ms.")
             total_epoch_time += per_epoch_time

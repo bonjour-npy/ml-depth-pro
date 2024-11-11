@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import PIL.Image
 import torch
+import torch.nn as nn
 from matplotlib import pyplot as plt
 
 from tqdm import tqdm  # type: ignore
@@ -20,7 +21,7 @@ def get_torch_device() -> torch.device:
     """Get the Torch device."""
     device = torch.device("cpu")
     if torch.cuda.is_available():
-        device = torch.device("cuda:0")
+        device = torch.device("cuda")
     elif torch.backends.mps.is_available():
         device = torch.device("mps")
 
@@ -40,6 +41,10 @@ def run(args):
             torch.half if args.half_float else torch.float
         ),  # 如果参数设置了半精度则使用 torch.half
     )
+
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
+        print(f"Using GPUs: {model.device_ids}")
 
     if args.half_float:
         model.half()
@@ -75,7 +80,13 @@ def run(args):
                     continue
                 # Run prediction. If `f_px` is provided, it is used to estimate the final metric depth,
                 # otherwise the model estimates `f_px` to compute the depth metricness.
-                prediction = model.infer(torch.tensor(transform(image)), f_px=f_px)
+                if isinstance(model, nn.DataParallel):
+                    prediction = model.module.infer(
+                        torch.tensor(transform(image)), f_px=f_px
+                    )
+                else:
+                    prediction = model.infer(torch.tensor(transform(image)), f_px=f_px)
+                # prediction = model.infer(torch.tensor(transform(image)), f_px=f_px)
 
         # 正式计算 inference time，执行 args.all_epochs - args.warm_up_epochs 个 epoch
         if epoch >= args.warm_up_epochs:
@@ -100,8 +111,14 @@ def run(args):
                 # Run prediction. If `f_px` is provided, it is used to estimate the final metric depth,
                 # otherwise the model estimates `f_px` to compute the depth metricness.
                 # 开始计时
-                starter.record(stream=torch.cuda.current_stream())
-                prediction = model.infer(torch.tensor(transform(image)), f_px=f_px)
+                if isinstance(model, nn.DataParallel):
+                    starter.record(stream=torch.cuda.current_stream())
+                    prediction = model.module.infer(
+                        torch.tensor(transform(image)), f_px=f_px
+                    )
+                else:
+                    starter.record(stream=torch.cuda.current_stream())
+                    prediction = model.infer(torch.tensor(transform(image)), f_px=f_px)
                 ender.record(stream=torch.cuda.current_stream())
                 torch.cuda.synchronize()
                 # 每个图片的 inference time
@@ -121,13 +138,15 @@ def run(args):
                         )
                         LOGGER.info(f"Estimated focal length: {focallength_px}")
 
-                    inverse_depth = 1 / depth
-                    # Visualize inverse depth instead of depth, clipped to [0.1m;250m] range for better visualization.
-                    max_invdepth_vizu = min(inverse_depth.max(), 1 / 0.1)
-                    min_invdepth_vizu = max(1 / 250, inverse_depth.min())
-                    inverse_depth_normalized = (inverse_depth - min_invdepth_vizu) / (
-                        max_invdepth_vizu - min_invdepth_vizu
-                    )
+                    # 取消深度倒数的操作，直接保存深度图
+
+                    # inverse_depth = 1 / depth
+                    # # Visualize inverse depth instead of depth, clipped to [0.1m;250m] range for better visualization.
+                    # max_invdepth_vizu = min(inverse_depth.max(), 1 / 0.1)
+                    # min_invdepth_vizu = max(1 / 250, inverse_depth.min())
+                    # inverse_depth_normalized = (inverse_depth - min_invdepth_vizu) / (
+                    #     max_invdepth_vizu - min_invdepth_vizu
+                    # )
 
                     # Save Depth as npz file.
                     if args.output_path is not None:
@@ -149,17 +168,26 @@ def run(args):
                         output_file.parent.mkdir(parents=True, exist_ok=True)
                         np.savez_compressed(output_file, depth=depth)
 
-                        # Save as color-mapped "turbo" jpg image.
-                        cmap = plt.get_cmap("turbo")
-                        color_depth = (
-                            cmap(inverse_depth_normalized)[..., :3] * 255
-                        ).astype(np.uint8)
-                        color_map_output_file = str(output_file) + ".png"
-                        LOGGER.info(
-                            f"Saving color-mapped depth to: : {color_map_output_file}"
-                        )
-                        PIL.Image.fromarray(color_depth).save(
-                            color_map_output_file, format="PNG"
+                        # 取消深度倒数的操作，直接保存深度图
+
+                        # # Save as color-mapped "turbo" jpg image.
+                        # cmap = plt.get_cmap("turbo")
+                        # color_depth = (
+                        #     cmap(inverse_depth_normalized)[..., :3] * 255
+                        # ).astype(np.uint8)
+                        # color_map_output_file = str(output_file) + ".png"
+                        # LOGGER.info(
+                        #     f"Saving color-mapped depth to: : {color_map_output_file}"
+                        # )
+                        # PIL.Image.fromarray(color_depth).save(
+                        #     color_map_output_file, format="PNG"
+                        # )
+
+                        # 保存深度的灰度图
+                        depth_output_file = str(output_file) + ".png"  # 保存深度图
+                        LOGGER.info(f"Saving depth map to: {depth_output_file}")
+                        PIL.Image.fromarray((depth * 255).astype(np.uint16)).save(
+                            depth_output_file, format="PNG"
                         )
 
                     print(f"Depth map and npz file saved.")
